@@ -12,7 +12,7 @@ const {
     updateStudent, 
     deleteStudent,
     deleteStudentBySid
-} = require('../controllers/studentController');
+} = require('./studentController.js');
 
 // Standard CRUD routes
 router.route('/')

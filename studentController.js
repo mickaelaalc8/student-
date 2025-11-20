@@ -1,5 +1,5 @@
 // /controllers/studentController.js
-const Student = require('../models/Student');
+const Student = require('./student.js'); // <--- CORRECTED line
 
 // Helper to wrap Mongoose functions and catch errors centrally
 const asyncHandler = fn => (req, res, next) => {
