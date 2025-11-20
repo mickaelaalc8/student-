@@ -19,6 +19,10 @@ const PORT = process.env.PORT || 3000;
 // --- Middleware ---
 app.use(cors());
 app.use(express.json()); 
+// Define a root route to show the welcome message
+app.get('/', (req, res) => {
+  res.send('The CRUD API is running');
+});
 
 // --- Routes Middleware ---
 // All requests to /api/students will be handled by studentRoutes
