@@ -1,7 +1,8 @@
 const cors = require('cors');
 const express = require('express');
 const dotenv = require('dotenv');
-const connectDB = require('./config/db.js'); // Import DB connection
+// Check if your folder is uppercase 'Config'
+const connectDB = require('./Config/db.js');
 const studentRoutes = require('./studentRoutes.js'); // Import Mongoose routes 
 
 // Load environment variables from .env file
