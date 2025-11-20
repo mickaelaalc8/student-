@@ -1,101 +1,61 @@
-require('dotenv').config();
-const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
-const { start } = require('repl');
+const express = require('express');
+const dotenv = require('dotenv');
+const connectDB = require('./config/db'); // Import DB connection
+const studentRoutes = require('./routes/studentRoutes'); // Import Mongoose routes
+
+// Load environment variables from .env file
+dotenv.config();
+
+// Connect to database
+connectDB(); 
 
 const app = express();
+// Default to 5000 if not specified in .env
 const PORT = process.env.PORT || 3000;
 
-//Middleware
-
+// --- Middleware ---
 app.use(cors());
-app.use(express.json());
+app.use(express.json()); 
 
-//Mongoose Schema & Model
+// --- Routes Middleware ---
+// All requests to /api/students will be handled by studentRoutes
+app.use('/api/students', studentRoutes); 
 
-const studentSchema = new mongoose.Schema({
-  firstName: {type: String, required: true},
-  lastName: {type: String, required: true},
-  email:{type: String, required: true, unique: true},
-  course: String,
-  year: Number
-}, {timestamps: true});
+// --- Global Error Handling Middleware (MUST be the last middleware) ---
+app.use((err, req, res, next) => {
+    // Log the error stack for debugging
+    console.error(err.stack); 
 
-const Student = mongoose.model('Student', studentSchema);
+    let statusCode = res.statusCode === 200 ? 500 : res.statusCode || 500;
+    let message = err.message || 'Server Error';
 
-//ROUTES
+    // 1. Handle Mongoose Validation Errors (400 Bad Request)
+    if (err.name === 'ValidationError') {
+        statusCode = 400;
+        // Concatenate all validation error messages
+        message = 'Validation failed: ' + Object.values(err.errors).map(val => val.message).join(', ');
+    } 
+    // 2. Handle Mongoose Duplicate Key Error (11000 - 409 Conflict)
+    else if (err.code && err.code === 11000) {
+        statusCode = 409;
+        const field = Object.keys(err.keyValue).join(', ');
+        message = `Duplicate value for ${field}. This must be unique.`;
+    }
+    // 3. Handle Invalid Mongoose ID Format (CastError - 404 Not Found)
+    else if (err.name === 'CastError') {
+        statusCode = 404;
+        message = 'Resource not found or invalid ID format.';
+    }
 
-//Root
-app.get('/', (req,res) => {
-  res.send('Student CRUD API is running!');
+    res.status(statusCode).json({
+        success: false,
+        message: message,
+    });
 });
 
-//Create a student
 
-app.post('/students', async (req,res)=>{
-  try {
-    const student = new Student(req.body);
-    await student.save();
-    res.status(201).json(student);
-  } catch(err) {
-    res.status(400).json({message: err.message});
-  }
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    // This confirms the server started, but does not confirm DB connection (connectDB does that)
 });
-
-//Read all students
-app.get('/students', async(req,res) => {
-  try {
-    const students = await Student.find().sort({ createdAt: -1 });
-    res.json(students);
-  } catch(err) {
-    res.status(500).json({message: err.message});
-  }
-});
-
-//Read one student
-app.get('/students/:id', async (req,res) => {
-  try{
-    const student = await Student.findById(req.params.id);
-    if(!student) return res.status(404).json({message: 'Student not found'});
-    res.json(student);
-  } catch(err) {
-    res.status(500).json({message: err.message});
-  }
-});
-
-//Update student
-
-app.put('/students/:id', async (req,res) => {
-  try{
-    const student = await Student.findByIdAndUpdate(req.params.id, req.body, { new: true});
-    if(!student) return res.status(404).json({message: 'Student not found'});
-    res.json(student);
-  } catch (err) {
-    res.status(400).json({message: err.message});
-  }
-});
-
-//Delete Student
-app.delete('/students/:id', async (req,res) => {
-  try{
-    const student = await Student.findByIdAndDelete(req.params.id);
-    if(!student) return res.status(404).json({message: 'Student not found'});
-    res.json({message: 'Student Deleted'});
-  } catch (err) {
-    res.status(500).json({message: err.message});
-  }
-});
-
-//connect to mongoDb Atlas
-async function startServer() {
-  try {
-    await mongoose.connect (process.env.MONGODB_URI);
-    console.log('Connected to MongoDB Atlas');
-    app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
-  } catch (err) {
-    console.error('Failed to connect:', err.message);
-  }
-}
-startServer();
-
